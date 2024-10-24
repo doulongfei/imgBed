@@ -75,15 +75,12 @@ async function errorHandling(context) {
         return new Response('Dashboard is disabled. Please bind a KV namespace to use this feature.', { status: 200 });
     }
 
-    console.log(context.env.BASIC_USER)
     if(typeof context.env.BASIC_USER == "undefined" || context.env.BASIC_USER == null || context.env.BASIC_USER == ""){
         return context.next();
     }else{
         if (context.request.headers.has('Authorization')) {
             // Throws exception when authorization fails.
-            const { user, pass } = basicAuthentication(context.request);
-            
-                          
+            const { user, pass } = basicAuthentication(context.request);                         
                 if (context.env.BASIC_USER !== user || context.env.BASIC_PASS !== pass) {
                     return UnauthorizedException('Invalid credentials.');
                 }else{
@@ -96,6 +93,7 @@ async function errorHandling(context) {
                 headers: {
                 // Prompts the user for credentials.
                 'WWW-Authenticate': 'Basic realm="my scope", charset="UTF-8"',
+                // 'WWW-Authenticate': 'None',
                 },
             });
         }
