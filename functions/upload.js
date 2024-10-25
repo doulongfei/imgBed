@@ -86,7 +86,9 @@ export async function onRequestPost(context) {
             body: formData,
         });
 
-        if (!response.ok) throw new Error("Upload failed");
+        if (!response.ok) {
+            throw new Error('Upload failed');
+        }
 
         const fileInfo = await response.json();
         const fileId = fileInfo.result?.file_id;

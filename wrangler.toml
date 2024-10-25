@@ -8,6 +8,7 @@ id = "c24af67a5c624e78b092b78cf2b99b5a"
 binding = "img_url"
 
 [env.production.vars]
+AUTH_CODE = "dou_upload"
 disable_telemetry = "true"
 TG_BOT_TOKEN = "7943522510:AAEmOh7Ao5vV9dyzpopEBtFl84Qa84FP4QY"
 TG_CHAT_ID = "-1002484766599"
