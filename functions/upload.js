@@ -160,7 +160,12 @@ export async function onRequestPost(context) {  // Contents of context object
         // 若上传成功，将响应返回给客户端
         if (response.ok) {
             res = new Response(
-              JSON.stringify([{ 'src': `/file/${fullId}`, 'fileInfo': fileInfo, 'filePathInfo': filePathInfo }]),
+              JSON.stringify([{
+                  'src': `/file/${fullId}`,
+                  'fileInfo': fileInfo,
+                  'filePathInfo': filePathInfo,
+                  'url': `https://img.doufei.eu.org/file/${fullId}`
+              }]),
                 {
                     status: 200,
                     headers: { 'Content-Type': 'application/json' }
