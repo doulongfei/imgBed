@@ -8,10 +8,11 @@ id = "c24af67a5c624e78b092b78cf2b99b5a"
 binding = "img_url"
 
 [env.production.vars]
-AUTH_CODE = "97f37e21e61556cbed0549bf9d021ac305131dd6"
 disable_telemetry = "true"
 TG_BOT_TOKEN = "7943522510:AAEmOh7Ao5vV9dyzpopEBtFl84Qa84FP4QY"
 TG_CHAT_ID = "-1002484766599"
+BASIC_USER = "lfdou"
+BASIC_PASS = "doufei888987"
 
 [[env.production.kv_namespaces]]
 id = "c24af67a5c624e78b092b78cf2b99b5a"
