@@ -9,9 +9,9 @@ export async function onRequest(context) {
 		data // arbitrary space for passing data between middlewares
 	} = context;
 
-	var url = new URL(request.url);
-	var sub = url.searchParams.get('sub');
-	var type = url.searchParams.get('type');
+	const url = new URL(request.url);
+	let sub = url.searchParams.get('sub');
+	const type = url.searchParams.get('type');
 	console.log('请求参数sub:' + sub + ' type:' + type);
 	if (sub == null) {
 		sub = '0';
