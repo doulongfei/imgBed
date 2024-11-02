@@ -1,0 +1,44 @@
+export async function onRequest(context) {
+	// Contents of context object
+	const {
+		request, // same as existing Worker API
+		env, // same as existing Worker API
+		params, // if filename includes [id] or [[path]]
+		waitUntil, // same as ctx.waitUntil in existing Worker API
+		next, // used for middleware or to fetch assets
+		data // arbitrary space for passing data between middlewares
+	} = context;
+
+	var url = new URL(request.url);
+	var sub = url.searchParams.get('sub');
+	console.log('请求参数sub:' + sub);
+	if (sub == null) {
+		sub = '0';
+	}
+	const info = await fetchYaml(sub);
+	return new Response(info);
+}
+
+function getTodayUrl(num) {
+	const today = new Date();
+	const year = today.getFullYear();
+	const month = String(today.getMonth() + 1).padStart(2, '0'); // 月份从0开始，所以加1
+	const day = String(today.getDate()).padStart(2, '0'); // 补零到两位
+
+	return `https://clash-meta.github.io/uploads/${year}/${month}/${num}-2024${month}${day}.yaml`;
+}
+
+async function fetchYaml(num) {
+	try {
+		const url = getTodayUrl(num); // 假设 getTodayUrl 函数在这里定义并返回 URL
+		const response = await fetch(url);
+		if (!response.ok) {
+			throw new Error('Network response was not ok');
+		}
+		return await response.text();
+	} catch (error) {
+		console.error('There has been a problem with your fetch operation:', error);
+	}
+}
+
+
