@@ -9,15 +9,20 @@ export async function onRequest(context) {
 		data // arbitrary space for passing data between middlewares
 	} = context;
 
-	var url = new URL(request.url);
-	var sub = url.searchParams.get('sub');
-	var type = url.searchParams.get('type');
+	const url = new URL(request.url);
+	const sub = url.searchParams.get('sub');
+	const type = url.searchParams.get('type');
 	console.log('请求参数sub:' + sub + ' type:' + type);
-	if (sub == null) {
-		sub = '0';
+
+	let res;
+	if (sub === null || sub === '') {
+		for (let i = 0; i <= 4; i++) {
+			res += await fetchYaml(i, type);
+		}
+	} else {
+		res = await fetchYaml(sub, type);
 	}
-	const info = await fetchYaml(sub, type);
-	return new Response(info);
+	return new Response(res);
 }
 
 function getTodayUrl(num, type) {
@@ -32,13 +37,18 @@ function getTodayUrl(num, type) {
 async function fetchYaml(num, type) {
 	try {
 		const url = getTodayUrl(num, type); // 假设 getTodayUrl 函数在这里定义并返回 URL
+
+		console.log('fetch url:' + url);
+
 		const response = await fetch(url);
 		if (!response.ok) {
-			throw new Error('Network response was not ok');
+			console.error('res error:' + JSON.stringify(response));
+			return '';
 		}
 		return await response.text();
 	} catch (error) {
 		console.error('There has been a problem with your fetch operation:', error);
+		return '';
 	}
 }
 
