@@ -12,7 +12,7 @@ export async function onRequest(context) {
 	var url = new URL(request.url);
 	var sub = url.searchParams.get('sub');
 	var type = url.searchParams.get('type');
-	console.log('请求参数sub:' + sub);
+	console.log('请求参数sub:' + sub + ' type:' + type);
 	if (sub == null) {
 		sub = '0';
 	}
