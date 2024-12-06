@@ -13,7 +13,7 @@ export async function onRequest(context) {
 	let name = url.searchParams.get('name');
 	let pwd = url.searchParams.get('pwd');
 	const dou = url.searchParams.get('dou');
-	if (dou == null) {
+	if (dou === 'dou') {
 		name = env.CPOLAR_NAME;
 		pwd = env.CPOLAR_PWD;
 	}
