@@ -1,4 +1,4 @@
-import { errorHandling, telemetryData } from './utils/middleware';
+import {errorHandling, telemetryData} from './utils/middleware';
 
 function UnauthorizedException(reason) {
 	return new Response(reason, {
@@ -171,7 +171,10 @@ export async function onRequestPost(context) {  // Contents of context object
 				}),
 				{
 					status: 200,
-					headers: { 'Content-Type': 'application/json' }
+					headers: {
+						'Content-Type': 'application/json',
+						'Access-Control-Allow-Origin': '*'
+					}
 				}
 			);
 		}
