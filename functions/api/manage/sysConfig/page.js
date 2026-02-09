@@ -213,6 +213,72 @@ export async function getPageConfig(db, env) {
             label: '管理页背景图',
             tooltip: '1.填写 bing 使用必应壁纸轮播 <br/> 2.填写 ["url1","url2"] 使用多张图片轮播 <br/> 3.填写 ["url"] 使用单张图片',
             category: '管理端设置',
+        },
+        // AI智能命名设置
+        {
+            id: 'aiNamingEnabled',
+            label: '启用AI命名',
+            type: 'boolean',
+            default: false,
+            tooltip: '开启后可使用AI根据图片内容生成语义化文件名<br/>需要配置AI服务地址和密钥',
+            category: 'AI智能命名',
+        },
+        {
+            id: 'aiNamingApiUrl',
+            label: 'API地址',
+            placeholder: 'http://localhost:8066/v1/chat/completions',
+            tooltip: '兼容OpenAI格式的聊天API地址',
+            category: 'AI智能命名',
+        },
+        {
+            id: 'aiNamingApiKey',
+            label: 'API密钥',
+            placeholder: '请输入API密钥',
+            tooltip: 'AI服务的访问密钥',
+            category: 'AI智能命名',
+        },
+        {
+            id: 'aiNamingModel',
+            label: '模型名称',
+            placeholder: 'gpt-4o',
+            tooltip: '使用的AI模型，如：gpt-4o、gemini-3-flash等',
+            category: 'AI智能命名',
+        },
+        {
+            id: 'aiNamingPrompt',
+            label: '提示词模板',
+            type: 'textarea',
+            placeholder: 'Please give this image a concise, descriptive filename (without extension, max 30 characters, use hyphens instead of spaces). Only return the filename, nothing else.',
+            tooltip: '用于指导AI生成文件名的提示词<br/>可自定义以调整命名风格',
+            category: 'AI智能命名',
+        },
+        {
+            id: 'aiNamingTimeout',
+            label: '超时时间(毫秒)',
+            placeholder: '10000',
+            tooltip: 'AI请求超时时间，默认10000毫秒(10秒)<br/>超时后将自动降级到默认命名',
+            category: 'AI智能命名',
+        },
+        {
+            id: 'aiNamingMaxRetries',
+            label: '最大重试次数',
+            placeholder: '2',
+            tooltip: 'AI请求失败后的重试次数，默认2次<br/>使用指数退避策略',
+            category: 'AI智能命名',
+        },
+        {
+            id: 'aiNamingFallbackNameType',
+            label: '降级命名方式',
+            type: 'select',
+            options: [
+                { label: '默认', value: 'default' },
+                { label: '仅前缀', value: 'index' },
+                { label: '仅原名', value: 'origin' },
+                { label: '短链接', value: 'short' },
+            ],
+            placeholder: 'default',
+            tooltip: 'AI命名失败后使用的备用命名方式',
+            category: 'AI智能命名',
         }
     )
 
