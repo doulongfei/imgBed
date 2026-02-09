@@ -1,7 +1,8 @@
-import { fetchSecurityConfig } from "../utils/sysConfig";
+import { fetchSecurityConfig, fetchOthersConfig } from "../utils/sysConfig";
 import { purgeCFCache, purgeRandomFileListCache, purgePublicFileListCache } from "../utils/purgeCache";
 import { addFileToIndex } from "../utils/indexManager.js";
 import { getDatabase } from '../utils/databaseAdapter.js';
+import { generateAIFilenameWithRetry } from '../utils/aiNaming.js';
 
 // 统一的响应创建函数
 export function createResponse(body, options = {}) {
@@ -313,7 +314,7 @@ export async function isBlockedUploadIp(env, uploadIp) {
 }
 
 // 构建唯一文件ID
-export async function buildUniqueFileId(context, fileName, fileType = 'application/octet-stream') {
+export async function buildUniqueFileId(context, fileName, fileType = 'application/octet-stream', imageBuffer = null) {
     const { env, url } = context;
     const db = getDatabase(env);
 
@@ -326,6 +327,12 @@ export async function buildUniqueFileId(context, fileName, fileType = 'applicati
     }
 
     const nameType = url.searchParams.get('uploadNameType') || 'default';
+
+    // ===== 新增：AI 命名模式 =====
+    if (nameType === 'ai') {
+        return await buildAIBasedFileId(context, fileName, fileType, imageBuffer);
+    }
+
     const uploadFolder = url.searchParams.get('uploadFolder') || '';
     const normalizedFolder = uploadFolder
         ? uploadFolder.replace(/^\/+/, '').replace(/\/{2,}/g, '/').replace(/\/$/, '')
@@ -422,4 +429,100 @@ export function selectConsistentChannel(channels, uploadId, loadBalanceEnabled) 
 
     const index = Math.abs(hash) % channels.length;
     return channels[index];
+}
+
+/**
+ * AI 智能命名模式
+ * @param {Object} context - 上下文对象
+ * @param {string} fileName - 原始文件名
+ * @param {string} fileType - 文件 MIME 类型
+ * @param {ArrayBuffer} imageBuffer - 图片 ArrayBuffer（可选，如果已提取）
+ * @returns {Promise<string>} 文件 ID
+ */
+async function buildAIBasedFileId(context, fileName, fileType, imageBuffer = null) {
+    const { env, url, request } = context;
+    const db = getDatabase(env);
+
+    // 1. 读取配置
+    const othersConfig = await fetchOthersConfig(env);
+    const aiConfig = othersConfig.aiNaming;
+
+    // 2. 检查是否启用
+    if (!aiConfig || !aiConfig.enabled) {
+        console.log('[AI Naming] Disabled, fallback to default naming');
+        return await buildFallbackFileId(context, fileName, fileType, aiConfig?.fallbackNameType || 'default');
+    }
+
+    // 3. 检查是否为图片文件
+    if (!fileType.startsWith('image/')) {
+        console.log('[AI Naming] Not an image file, fallback to default');
+        return await buildFallbackFileId(context, fileName, fileType, aiConfig.fallbackNameType);
+    }
+
+    // 4. 检查图片 ArrayBuffer
+    if (!imageBuffer) {
+        console.error('[AI Naming] No image buffer provided');
+        return await buildFallbackFileId(context, fileName, fileType, aiConfig.fallbackNameType);
+    }
+
+    // 5. 调用 AI 生成文件名
+    const aiName = await generateAIFilenameWithRetry(imageBuffer, fileType, env, aiConfig);
+
+    if (!aiName) {
+        console.log('[AI Naming] Failed, fallback to', aiConfig.fallbackNameType);
+        return await buildFallbackFileId(context, fileName, fileType, aiConfig.fallbackNameType);
+    }
+
+    // 6. 构建最终文件 ID
+    const fileExt = fileName.split('.').pop() || fileType.split('/').pop() || 'jpg';
+    const uploadFolder = url.searchParams.get('uploadFolder') || '';
+    const normalizedFolder = uploadFolder
+        .replace(/^\/+/, '')
+        .replace(/\/{2,}/g, '/')
+        .replace(/\/$/, '');
+
+    const baseId = normalizedFolder
+        ? `${normalizedFolder}/${aiName}.${fileExt}`
+        : `${aiName}.${fileExt}`;
+
+    // 7. 检查重复（添加编号）
+    if (await db.get(baseId) === null) {
+        console.log(`[AI Naming] Generated unique ID: ${baseId}`);
+        return baseId;
+    }
+
+    let counter = 1;
+    while (counter <= 1000) {
+        const duplicateId = normalizedFolder
+            ? `${normalizedFolder}/${aiName}-${counter}.${fileExt}`
+            : `${aiName}-${counter}.${fileExt}`;
+
+        if (await db.get(duplicateId) === null) {
+            console.log(`[AI Naming] Generated unique ID with counter: ${duplicateId}`);
+            return duplicateId;
+        }
+        counter++;
+    }
+
+    throw new Error('Failed to generate unique AI-based filename after 1000 attempts');
+}
+
+/**
+ * 降级到其他命名方式
+ * @param {Object} context - 上下文对象
+ * @param {string} fileName - 原始文件名
+ * @param {string} fileType - 文件 MIME 类型
+ * @param {string} fallbackType - 降级使用的命名方式
+ * @returns {Promise<string>} 文件 ID
+ */
+async function buildFallbackFileId(context, fileName, fileType, fallbackType) {
+    const { url } = context;
+
+    // 修改 URL 参数，使用降级命名方式
+    const newUrl = new URL(url);
+    newUrl.searchParams.set('uploadNameType', fallbackType);
+
+    // 递归调用 buildUniqueFileId，但使用新的 nameType
+    const newContext = { ...context, url: newUrl };
+    return await buildUniqueFileId(newContext, fileName, fileType);
 }
