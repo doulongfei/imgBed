@@ -142,6 +142,7 @@ export async function getPageConfig(db, env) {
                 { label: '仅前缀', value: 'index' },
                 { label: '仅原名', value: 'origin' },
                 { label: '短链接', value: 'short' },
+                { label: 'AI智能', value: 'ai' },
             ],
             placeholder: 'default',
             category: '客户端设置',
