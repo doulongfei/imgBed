@@ -135,12 +135,15 @@ async function processFileUpload(context, formdata = null) {
         return createResponse('Error: fileType or fileName is wrong, check the integrity of this file!', { status: 400 });
     }
 
-    // 提取图片尺寸
+    // 提取图片尺寸和完整 ArrayBuffer（用于 AI 命名）
     let imageDimensions = null;
+    let imageBuffer = null;
     if (fileType.startsWith('image/')) {
         try {
-            // 统一读取 64KB，足以覆盖 JPEG 的 EXIF 数据和其他格式
-            const headerBuffer = await file.slice(0, 65536).arrayBuffer();
+            // 读取完整图片数据（用于 AI 命名）
+            imageBuffer = await file.arrayBuffer();
+            // 使用前 64KB 提取尺寸信息
+            const headerBuffer = imageBuffer.slice(0, 65536);
             imageDimensions = getImageDimensions(headerBuffer, fileType);
         } catch (error) {
             console.error('Error reading image dimensions:', error);
@@ -188,8 +191,8 @@ async function processFileUpload(context, formdata = null) {
         }
     }
 
-    // 构建文件ID
-    const fullId = await buildUniqueFileId(context, fileName, fileType);
+    // 构建文件ID（传递 imageBuffer 用于 AI 命名）
+    const fullId = await buildUniqueFileId(context, fileName, fileType, imageBuffer);
 
     // 获得返回链接格式, default为返回/file/id, full为返回完整链接
     const returnFormat = url.searchParams.get('returnFormat') || 'default';

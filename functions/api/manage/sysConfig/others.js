@@ -90,6 +90,20 @@ export async function getOthersConfig(db, env) {
         fixed: false,
     }
 
+    // AI 智能命名
+    const kvAINaming = settingsKV.aiNaming || {}
+    settings.aiNaming = {
+        enabled: kvAINaming.enabled ?? (env.AI_NAMING_ENABLED === 'true'),
+        apiUrl: kvAINaming.apiUrl || env.AI_NAMING_API_URL || '',
+        apiKey: kvAINaming.apiKey || env.AI_NAMING_API_KEY || '',
+        model: kvAINaming.model || env.AI_NAMING_MODEL || 'gpt-4o',
+        prompt: kvAINaming.prompt || env.AI_NAMING_PROMPT ||
+            'Please give this image a concise, descriptive filename (without extension, max 30 characters, use hyphens instead of spaces). Only return the filename, nothing else.',
+        timeout: kvAINaming.timeout || parseInt(env.AI_NAMING_TIMEOUT) || 10000,
+        maxRetries: kvAINaming.maxRetries || parseInt(env.AI_NAMING_MAX_RETRIES) || 2,
+        fallbackNameType: kvAINaming.fallbackNameType || env.AI_NAMING_FALLBACK || 'default',
+        fixed: false,
+    }
 
     return settings;
 }
