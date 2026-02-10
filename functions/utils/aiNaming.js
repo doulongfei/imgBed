@@ -1,11 +1,16 @@
 /**
  * AI 智能命名模块
  * 调用本地 AI API 根据图片内容生成语义化文件名
+ * 使用 @jsquash (MozJPEG WASM) 对大图片压缩后再发送
  */
-import jpeg from 'jpeg-js';
+import { decode as decodeJpeg, encode as encodeJpeg } from '@jsquash/jpeg';
+import { decode as decodePng } from '@jsquash/png';
+import { decode as decodeWebp } from '@jsquash/webp';
+import resize from '@jsquash/resize';
 
-// AI API 请求体大小上限（base64 编码后约为原始大小的 1.37 倍，加上 JSON 开销）
-const MAX_REQUEST_BODY_SIZE = 4 * 1024 * 1024; // 4MB（对应原始图片约 3MB）
+// AI 命名用的缩略图参数：512px 最大边 + 质量 40（只需看懂内容即可）
+const AI_THUMBNAIL_MAX_SIZE = 512;
+const AI_THUMBNAIL_QUALITY = 40;
 
 /**
  * 将 ArrayBuffer 转为 base64 字符串（分块处理，避免栈溢出）
@@ -21,30 +26,65 @@ function arrayBufferToBase64(buffer) {
 }
 
 /**
- * 压缩 JPEG 图片到指定大小以内
- * @param {ArrayBuffer} imageBuffer - 原始图片
- * @param {number} maxSize - 目标最大大小（字节）
- * @returns {{buffer: ArrayBuffer, mimeType: string}|null} 压缩后的图片，或 null 表示无法压缩
+ * 解码图片为 ImageData（支持 JPEG/PNG/WebP）
+ * @param {ArrayBuffer} buffer - 图片二进制数据
+ * @param {string} mimeType - MIME 类型
+ * @returns {Promise<ImageData|null>}
  */
-function compressJpegToFit(imageBuffer, maxSize) {
+async function decodeImage(buffer, mimeType) {
     try {
-        const rawData = jpeg.decode(new Uint8Array(imageBuffer), { useTArray: true, formatAsRGBA: true });
-        console.log(`[AI Naming] JPEG decoded: ${rawData.width}x${rawData.height}`);
+        if (mimeType === 'image/jpeg' || mimeType === 'image/jpg') {
+            return await decodeJpeg(buffer);
+        } else if (mimeType === 'image/png') {
+            return await decodePng(buffer);
+        } else if (mimeType === 'image/webp') {
+            return await decodeWebp(buffer);
+        }
+        // GIF 等不支持的格式，尝试按 JPEG 解码
+        return await decodeJpeg(buffer);
+    } catch (error) {
+        console.error(`[AI Naming] Failed to decode ${mimeType}:`, error.message);
+        return null;
+    }
+}
 
-        // 逐步降低质量直到满足大小要求
-        for (let quality = 60; quality >= 10; quality -= 10) {
-            const encoded = jpeg.encode(rawData, quality);
-            console.log(`[AI Naming] JPEG re-encoded quality=${quality}: ${(encoded.data.length / 1024).toFixed(0)}KB`);
-            if (encoded.data.length <= maxSize) {
-                return { buffer: encoded.data.buffer, mimeType: 'image/jpeg' };
-            }
+/**
+ * 将任意图片压缩为 AI 命名用的小缩略图
+ * 策略：缩小到 512px + MozJPEG quality=40，通常只有几十 KB
+ * @param {ArrayBuffer} imageBuffer - 原始图片
+ * @param {string} fileType - MIME 类型
+ * @returns {Promise<{buffer: ArrayBuffer, mimeType: string}|null>}
+ */
+async function compressForAI(imageBuffer, fileType) {
+    try {
+        // 1. 解码为像素数据
+        const imageData = await decodeImage(imageBuffer, fileType);
+        if (!imageData) return null;
+
+        console.log(`[AI Naming] Decoded: ${imageData.width}x${imageData.height}`);
+
+        // 2. 计算缩放尺寸（最大边不超过 AI_THUMBNAIL_MAX_SIZE）
+        let targetWidth = imageData.width;
+        let targetHeight = imageData.height;
+        const maxDim = Math.max(targetWidth, targetHeight);
+
+        if (maxDim > AI_THUMBNAIL_MAX_SIZE) {
+            const scale = AI_THUMBNAIL_MAX_SIZE / maxDim;
+            targetWidth = Math.round(targetWidth * scale);
+            targetHeight = Math.round(targetHeight * scale);
         }
 
-        // 最低质量仍然超限
-        console.log('[AI Naming] JPEG compression failed: still too large at quality=10');
-        return null;
+        // 3. 缩放
+        const resized = await resize(imageData, { width: targetWidth, height: targetHeight });
+        console.log(`[AI Naming] Resized: ${targetWidth}x${targetHeight}`);
+
+        // 4. MozJPEG 编码（低质量，追求小体积）
+        const encoded = await encodeJpeg(resized, { quality: AI_THUMBNAIL_QUALITY });
+        console.log(`[AI Naming] Encoded: ${(encoded.byteLength / 1024).toFixed(1)}KB (quality=${AI_THUMBNAIL_QUALITY})`);
+
+        return { buffer: encoded, mimeType: 'image/jpeg' };
     } catch (error) {
-        console.error('[AI Naming] JPEG compression error:', error.message);
+        console.error('[AI Naming] Compression error:', error.message);
         return null;
     }
 }
@@ -60,39 +100,19 @@ function compressJpegToFit(imageBuffer, maxSize) {
 export async function generateAIFilename(imageBuffer, fileType, env, config) {
     try {
         console.log('[AI Naming] Starting, API URL:', config.apiUrl);
-        console.log('[AI Naming] Image size:', imageBuffer.byteLength, 'bytes');
+        console.log('[AI Naming] Original image size:', imageBuffer.byteLength, 'bytes');
 
-        // 1. 大图片压缩处理（避免 413 Request Entity Too Large）
-        const maxImageSize = config.maxImageSize || MAX_REQUEST_BODY_SIZE;
+        // 1. 压缩图片为 AI 命名专用缩略图（所有图片统一压缩，节省传输和 token）
         let finalBuffer = imageBuffer;
         let finalMimeType = fileType;
 
-        if (imageBuffer.byteLength > maxImageSize) {
-            console.log(`[AI Naming] Image too large (${(imageBuffer.byteLength / 1024 / 1024).toFixed(2)}MB), compressing...`);
-
-            if (fileType === 'image/jpeg' || fileType === 'image/jpg') {
-                // JPEG: 降低质量重新编码
-                const compressed = compressJpegToFit(imageBuffer, maxImageSize);
-                if (!compressed) {
-                    console.log('[AI Naming] Compression failed, skipping');
-                    return null;
-                }
-                finalBuffer = compressed.buffer;
-                finalMimeType = compressed.mimeType;
-                console.log(`[AI Naming] Compressed: ${(imageBuffer.byteLength / 1024).toFixed(0)}KB -> ${(finalBuffer.byteLength / 1024).toFixed(0)}KB`);
-            } else {
-                // PNG/WebP/GIF 等非 JPEG 格式：尝试按 JPEG 解码压缩（PNG 可解码为像素数据后编码为 JPEG）
-                console.log(`[AI Naming] Non-JPEG format (${fileType}), attempting JPEG re-encode...`);
-                const compressed = compressJpegToFit(imageBuffer, maxImageSize);
-                if (compressed) {
-                    finalBuffer = compressed.buffer;
-                    finalMimeType = compressed.mimeType;
-                    console.log(`[AI Naming] Re-encoded as JPEG: ${(imageBuffer.byteLength / 1024).toFixed(0)}KB -> ${(finalBuffer.byteLength / 1024).toFixed(0)}KB`);
-                } else {
-                    console.log(`[AI Naming] Cannot compress ${fileType}, skipping`);
-                    return null;
-                }
-            }
+        const compressed = await compressForAI(imageBuffer, fileType);
+        if (compressed) {
+            finalBuffer = compressed.buffer;
+            finalMimeType = compressed.mimeType;
+            console.log(`[AI Naming] Compressed: ${(imageBuffer.byteLength / 1024).toFixed(0)}KB -> ${(finalBuffer.byteLength / 1024).toFixed(1)}KB`);
+        } else {
+            console.log('[AI Naming] Compression failed, using original image');
         }
 
         // 2. 转换图片为 base64
@@ -101,7 +121,7 @@ export async function generateAIFilename(imageBuffer, fileType, env, config) {
 
         console.log('[AI Naming] Base64 length:', base64Image.length);
 
-        // 3. 构建 API 请求（使用 detail:low 减少 token 消耗，AI 命名不需要高分辨率）
+        // 3. 构建 API 请求（使用 detail:low 减少 token 消耗）
         const requestBody = {
             model: config.model,
             messages: [{
