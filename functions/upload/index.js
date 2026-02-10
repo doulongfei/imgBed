@@ -68,7 +68,25 @@ export async function onRequest(context) {  // Contents of context object
     }
 
     // 处理非分块文件上传
-    return await processFileUpload(context);
+    const res = await processFileUpload(context);
+
+    // 统一为成功响应注入完整 URL
+    if (res.status === 200 && context.fullUrl) {
+        try {
+            const body = await res.clone().text();
+            const data = JSON.parse(body);
+            if (Array.isArray(data) && data[0]?.src) {
+                data[0].url = context.fullUrl;
+                return createResponse(JSON.stringify(data), {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            }
+        } catch {
+            // JSON 解析失败，返回原始响应
+        }
+    }
+    return res;
 }
 
 
@@ -202,6 +220,8 @@ async function processFileUpload(context, formdata = null) {
     } else {
         returnLink = `/file/${fullId}`;
     }
+    // 完整 URL（始终可用，挂到 context 供各渠道返回时使用）
+    context.fullUrl = `${url.origin}/file/${fullId}`;
 
     /* ====================================不同渠道上传======================================= */
     // 出错是否切换渠道自动重试，默认开启
