@@ -13,10 +13,15 @@
  */
 export async function generateAIFilename(imageBuffer, fileType, env, config) {
     try {
+        console.log('[AI Naming] Starting, API URL:', config.apiUrl);
+        console.log('[AI Naming] Image size:', imageBuffer.byteLength, 'bytes');
+
         // 1. 转换图片为 base64
         const uint8Array = new Uint8Array(imageBuffer);
         const base64Image = btoa(String.fromCharCode(...uint8Array));
         const dataUrl = `data:${fileType};base64,${base64Image}`;
+
+        console.log('[AI Naming] Base64 length:', base64Image.length);
 
         // 2. 构建 API 请求
         const requestBody = {
@@ -31,11 +36,14 @@ export async function generateAIFilename(imageBuffer, fileType, env, config) {
             max_tokens: 50
         };
 
+        console.log('[AI Naming] Request body size:', JSON.stringify(requestBody).length, 'bytes');
+
         // 3. 添加超时控制
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), config.timeout);
 
         // 4. 调用 AI API
+        console.log('[AI Naming] Calling API...');
         const response = await fetch(config.apiUrl, {
             method: 'POST',
             headers: {
@@ -48,8 +56,11 @@ export async function generateAIFilename(imageBuffer, fileType, env, config) {
 
         clearTimeout(timeoutId);
 
+        console.log('[AI Naming] Response status:', response.status);
+
         if (!response.ok) {
             const errorText = await response.text();
+            console.log('[AI Naming] Error response:', errorText);
             throw new Error(`AI API error: ${response.status} - ${errorText}`);
         }
 
