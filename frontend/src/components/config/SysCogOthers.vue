@@ -109,9 +109,45 @@
                     </el-select>
                 </el-form-item>
             </el-form>
+            <h3 class="first-title">AI智能命名
+                <el-tooltip content="上传图片时调用AI生成语义化文件名" placement="right" raw-content>
+                    <font-awesome-icon icon="question-circle" style="margin-left: 5px; cursor: pointer;"/>
+                </el-tooltip>
+            </h3>
+            <el-form :model="settings.aiNaming" label-width="120px">
+                <el-form-item label="启用AI命名">
+                    <el-switch v-model="settings.aiNaming.enabled" :disabled="settings.aiNaming.fixed"></el-switch>
+                </el-form-item>
+                <el-form-item label="API地址">
+                    <el-input v-model="settings.aiNaming.apiUrl" :disabled="settings.aiNaming.fixed" placeholder="http://localhost:8066/v1/chat/completions"></el-input>
+                </el-form-item>
+                <el-form-item label="API密钥">
+                    <el-input v-model="settings.aiNaming.apiKey" :disabled="settings.aiNaming.fixed" type="password" show-password autocomplete="new-password"></el-input>
+                </el-form-item>
+                <el-form-item label="模型名称">
+                    <el-input v-model="settings.aiNaming.model" :disabled="settings.aiNaming.fixed" placeholder="gpt-4o"></el-input>
+                </el-form-item>
+                <el-form-item label="提示词模板">
+                    <el-input v-model="settings.aiNaming.prompt" :disabled="settings.aiNaming.fixed" type="textarea" :rows="3" placeholder="Please give this image a concise, descriptive filename..."></el-input>
+                </el-form-item>
+                <el-form-item label="超时时间(毫秒)">
+                    <el-input-number v-model="settings.aiNaming.timeout" :disabled="settings.aiNaming.fixed" :min="5000" :max="60000" :step="1000"></el-input-number>
+                </el-form-item>
+                <el-form-item label="最大重试次数">
+                    <el-input-number v-model="settings.aiNaming.maxRetries" :disabled="settings.aiNaming.fixed" :min="0" :max="5" :step="1"></el-input-number>
+                </el-form-item>
+                <el-form-item label="降级命名方式">
+                    <el-select v-model="settings.aiNaming.fallbackNameType" :disabled="settings.aiNaming.fixed" placeholder="默认">
+                        <el-option label="默认" value="default"></el-option>
+                        <el-option label="仅前缀" value="index"></el-option>
+                        <el-option label="仅原名" value="origin"></el-option>
+                        <el-option label="短链接" value="short"></el-option>
+                    </el-select>
+                </el-form-item>
+            </el-form>
         </div>
 
-    
+
         <!-- 悬浮保存按钮 -->
         <FloatingSaveButton :show="!loading" @click="saveSettings" />
     </div>
@@ -132,7 +168,8 @@ data() {
             randomImageAPI: {},
             cloudflareApiToken: {},
             webDAV: {},
-            publicBrowse: {}
+            publicBrowse: {},
+            aiNaming: {}
         },
         availableChannels: {}, // 可用渠道列表
         // 加载状态
