@@ -16,7 +16,14 @@ export async function generateAIFilename(imageBuffer, fileType, env, config) {
         console.log('[AI Naming] Starting, API URL:', config.apiUrl);
         console.log('[AI Naming] Image size:', imageBuffer.byteLength, 'bytes');
 
-        // 1. 转换图片为 base64（分块处理，避免栈溢出）
+        // 1. 检查图片大小，超过阈值直接跳过（避免 413 Request Entity Too Large）
+        const maxImageSize = config.maxImageSize || 4 * 1024 * 1024; // 默认 4MB
+        if (imageBuffer.byteLength > maxImageSize) {
+            console.log(`[AI Naming] Image too large (${(imageBuffer.byteLength / 1024 / 1024).toFixed(2)}MB > ${(maxImageSize / 1024 / 1024).toFixed(0)}MB), skipping`);
+            return null;
+        }
+
+        // 2. 转换图片为 base64（分块处理，避免栈溢出）
         const uint8Array = new Uint8Array(imageBuffer);
         let binaryStr = '';
         const chunkSize = 8192;
@@ -28,14 +35,14 @@ export async function generateAIFilename(imageBuffer, fileType, env, config) {
 
         console.log('[AI Naming] Base64 length:', base64Image.length);
 
-        // 2. 构建 API 请求
+        // 3. 构建 API 请求（使用 detail:low 减少 token 消耗，AI 命名不需要高分辨率）
         const requestBody = {
             model: config.model,
             messages: [{
                 role: 'user',
                 content: [
                     { type: 'text', text: config.prompt },
-                    { type: 'image_url', image_url: { url: dataUrl } }
+                    { type: 'image_url', image_url: { url: dataUrl, detail: 'low' } }
                 ]
             }],
             max_tokens: 50
@@ -43,11 +50,11 @@ export async function generateAIFilename(imageBuffer, fileType, env, config) {
 
         console.log('[AI Naming] Request body size:', JSON.stringify(requestBody).length, 'bytes');
 
-        // 3. 添加超时控制
+        // 4. 添加超时控制
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), config.timeout);
 
-        // 4. 调用 AI API
+        // 5. 调用 AI API
         console.log('[AI Naming] Calling API...');
         const response = await fetch(config.apiUrl, {
             method: 'POST',
@@ -69,7 +76,7 @@ export async function generateAIFilename(imageBuffer, fileType, env, config) {
             throw new Error(`AI API error: ${response.status} - ${errorText}`);
         }
 
-        // 5. 解析响应
+        // 6. 解析响应
         const data = await response.json();
         const aiName = data.choices?.[0]?.message?.content?.trim();
 
@@ -77,7 +84,7 @@ export async function generateAIFilename(imageBuffer, fileType, env, config) {
             throw new Error('AI API returned empty response');
         }
 
-        // 6. 文件名清洗（移除非法字符）
+        // 7. 文件名清洗（移除非法字符）
         return sanitizeAIFilename(aiName);
 
     } catch (error) {
