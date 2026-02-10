@@ -1,8 +1,12 @@
 {
   "scripts": {
-    "ci-test": "concurrently --kill-others \"npm start\" \"wait-on http://localhost:8080 && mocha\"",
+    "build": "cd frontend && npm install && npm run build",
+    "start": "npm run build && npx wrangler pages dev ./dist --kv \"img_url\" --r2 \"img_r2\" --ip 0.0.0.0 --port 8080 --persist-to ./data",
+    "dev:backend": "npx wrangler pages dev ./dist --kv \"img_url\" --r2 \"img_r2\" --ip 0.0.0.0 --port 8080 --persist-to ./data",
+    "dev:frontend": "cd frontend && npm run serve",
+    "dev": "npm run build && concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "test": "mocha",
-    "start": "npx wrangler pages dev ./ --kv \"img_url\" --r2 \"img_r2\" --ip 0.0.0.0 --port 8080 --persist-to ./data"
+    "ci-test": "npm run build && concurrently --kill-others \"npm run dev:backend\" \"wait-on http://localhost:8080 && mocha\""
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.985.0",

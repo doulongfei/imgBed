@@ -7,3 +7,19 @@ wrangler.toml
 
 .kiro/
 .vscode/
+
+# 前端构建产物（由 npm run build 生成，不再提交到 git）
+dist/
+js/
+css/
+img/
+fonts/
+public/
+index.html
+index.html.gz
+logo.png
+logo-dark.png
+
+# 前端开发依赖
+frontend/node_modules/
+frontend/dist/

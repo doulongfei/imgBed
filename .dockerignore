@@ -1,7 +1,16 @@
 node_modules
+frontend/node_modules
+frontend/dist
 npm-debug.log
 Dockerfile
 .dockerignore
 .git
 .gitignore
 .github
+dist
+data
+.wrangler
+.dev.vars
+.claude
+.kiro
+.vscode
