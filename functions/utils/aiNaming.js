@@ -16,9 +16,14 @@ export async function generateAIFilename(imageBuffer, fileType, env, config) {
         console.log('[AI Naming] Starting, API URL:', config.apiUrl);
         console.log('[AI Naming] Image size:', imageBuffer.byteLength, 'bytes');
 
-        // 1. 转换图片为 base64
+        // 1. 转换图片为 base64（分块处理，避免栈溢出）
         const uint8Array = new Uint8Array(imageBuffer);
-        const base64Image = btoa(String.fromCharCode(...uint8Array));
+        let binaryStr = '';
+        const chunkSize = 8192;
+        for (let i = 0; i < uint8Array.length; i += chunkSize) {
+            binaryStr += String.fromCharCode(...uint8Array.slice(i, i + chunkSize));
+        }
+        const base64Image = btoa(binaryStr);
         const dataUrl = `data:${fileType};base64,${base64Image}`;
 
         console.log('[AI Naming] Base64 length:', base64Image.length);
