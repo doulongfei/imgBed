@@ -7,6 +7,7 @@ wrangler.toml
 
 .kiro/
 .vscode/
+.claude/settings.local.json
 
 # 前端构建产物（由 npm run build 生成，不再提交到 git）
 dist/
