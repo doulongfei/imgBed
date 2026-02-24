@@ -34,7 +34,23 @@ export function validateFileId(newFileId, currentFileId) {
     };
   }
 
-  // 3. 非法字符检测（复用 pathValidator 的字符规则）
+  // 3. 路径穿越检测
+  if (newFileId.includes('..')) {
+    return {
+      valid: false,
+      error: '文件名不能包含路径穿越字符 ".."'
+    };
+  }
+
+  // 3.5 单独的 . 路径段检测（仅检查 /./ 或开头 ./，不检查末尾以允许继续输入如 .123）
+  if (/\/\.\//.test(newFileId) || /^\.\//.test(newFileId)) {
+    return {
+      valid: false,
+      error: '文件名不能包含单独的 "." 路径段'
+    };
+  }
+
+  // 4. 非法字符检测（复用 pathValidator 的字符规则）
   if (INVALID_CHARS.test(newFileId)) {
     return {
       valid: false,
@@ -42,7 +58,7 @@ export function validateFileId(newFileId, currentFileId) {
     };
   }
 
-  // 4. 连续斜杠检测
+  // 5. 连续斜杠检测
   if (newFileId.includes('//')) {
     return {
       valid: false,

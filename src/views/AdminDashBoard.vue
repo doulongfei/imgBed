@@ -161,7 +161,7 @@
                 </template>
             </div>
             <!-- 列表视图 -->
-            <div v-else class="list-view">
+            <div v-else class="list-view" ref="listContainerRef">
                 <div class="list-header">
                     <div class="list-col list-col-checkbox">
                         <span class="custom-checkbox" :class="{ 'checked': isSelectAll, 'indeterminate': isIndeterminate }" @click="handleSelectAllPage(!isSelectAll)">
@@ -456,22 +456,23 @@ components: {
     FilterDropdown
 },
 setup() {
-    // Template ref for the .content card container
     const cardContainerRef = ref(null);
-    // Reactive refs to sync with Options API data/computed
+    const listContainerRef = ref(null);
     const viewModeRef = ref('card');
     const itemsRef = ref([]);
 
-    // Initialize drag-select composable
     const { isDragging, selectionRect } = useDragSelect({
-        containerRef: cardContainerRef,
+        modes: {
+            card: { containerRef: cardContainerRef, itemSelector: '.img-card' },
+            list: { containerRef: listContainerRef, itemSelector: '.list-item' },
+        },
         viewMode: viewModeRef,
         items: itemsRef,
-        cardSelector: '.img-card',
     });
 
     return {
         cardContainerRef,
+        listContainerRef,
         viewModeRef,
         itemsRef,
         isDragging,
@@ -1298,7 +1299,7 @@ methods: {
                 this.$message.warning('目标文件夹不能是当前文件夹');
                 return;
             }
-            fetchWithAuth(`/api/manage/move/${key}?folder=${isFolder}&dist=${newPath}`, { method: 'GET' })
+            fetchWithAuth(`/api/manage/move/${key}?folder=${isFolder}&dist=${encodeURIComponent(newPath)}`, { method: 'GET' })
                 .then(response => {
                     if (response.ok) {
                         const fileIndex = this.tableData.findIndex(file => file.name === key);
@@ -1363,7 +1364,7 @@ methods: {
             }
             const promises = this.selectedFiles.map(file => {
                 const isFolder = file.isFolder;
-                return fetchWithAuth(`/api/manage/move/${file.name}?folder=${isFolder}&dist=${newPath}`, { method: 'GET' });
+                return fetchWithAuth(`/api/manage/move/${file.name}?folder=${isFolder}&dist=${encodeURIComponent(newPath)}`, { method: 'GET' });
             });
 
             Promise.all(promises)
@@ -1978,6 +1979,12 @@ mounted() {
     // 读取自定义链接设置项
     this.customUrlPrefix = this.adminUrlSettings.customUrlPrefix;
     this.useCustomUrl = this.adminUrlSettings.useCustomUrl;
+
+    // 恢复视图模式偏好
+    const savedViewMode = localStorage.getItem('viewMode');
+    if (savedViewMode === 'card' || savedViewMode === 'list') {
+        this.viewMode = savedViewMode;
+    }
 }
 
 };
