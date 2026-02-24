@@ -467,7 +467,7 @@ methods: {
                 (this.channelName ? '&channelName=' + encodeURIComponent(this.channelName) : '') +
                 '&uploadNameType=' + uploadNameType + 
                 '&autoRetry=' + autoRetry + 
-                '&uploadFolder=' + this.uploadFolder,
+                '&uploadFolder=' + encodeURIComponent(this.uploadFolder),
             method: 'post',
             data: formData,
             withAuthCode: true,
@@ -550,7 +550,7 @@ methods: {
                     (this.channelName ? '&channelName=' + encodeURIComponent(this.channelName) : '') +
                     '&uploadNameType=' + uploadNameType + 
                     '&autoRetry=' + autoRetry + 
-                    '&uploadFolder=' + this.uploadFolder +
+                    '&uploadFolder=' + encodeURIComponent(this.uploadFolder) +
                     '&initChunked=true',
                 method: 'post',
                 data: initFormData,
@@ -607,7 +607,7 @@ methods: {
                                 (this.channelName ? '&channelName=' + encodeURIComponent(this.channelName) : '') +
                                 '&uploadNameType=' + uploadNameType + 
                                 '&autoRetry=' + autoRetry + 
-                                '&uploadFolder=' + this.uploadFolder +
+                                '&uploadFolder=' + encodeURIComponent(this.uploadFolder) +
                                 '&chunked=true',
                             method: 'post',
                             data: formData,
@@ -697,7 +697,7 @@ methods: {
                     (this.channelName ? '&channelName=' + encodeURIComponent(this.channelName) : '') +
                     '&uploadNameType=' + uploadNameType + 
                     '&autoRetry=' + autoRetry + 
-                    '&uploadFolder=' + this.uploadFolder +
+                    '&uploadFolder=' + encodeURIComponent(this.uploadFolder) +
                     '&chunked=true&merge=true',
                 method: 'post',
                 data: mergeFormData,
@@ -1255,7 +1255,7 @@ methods: {
             file.onProgress({ percent: 10, file: file.file });
             console.log('Getting LFS upload URL...');
             const uploadInfoRes = await axios({
-                url: '/api/huggingface/getUploadUrl',
+                url: '/upload/huggingface/getUploadUrl',
                 method: 'post',
                 data: {
                     fileSize: file.file.size,
@@ -1317,7 +1317,7 @@ methods: {
             file.onProgress({ percent: 95, file: file.file });
             console.log('Committing file...');
             const commitRes = await axios({
-                url: '/api/huggingface/commitUpload',
+                url: '/upload/huggingface/commitUpload',
                 method: 'post',
                 data: {
                     fullId: uploadInfo.fullId,
