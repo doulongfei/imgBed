@@ -208,6 +208,13 @@ async function processFileUpload(context, formdata = null) {
     // 构建文件ID（传递 imageBuffer 用于 AI 命名）
     const fullId = await buildUniqueFileId(context, fileName, fileType, imageBuffer);
 
+    // 如果使用了 AI 命名，将 AI 生成的文件名同步到 metadata.FileName
+    // fullId 格式：[folder/]aiName.ext，从中提取文件名部分
+    const fullIdFileName = fullId.split('/').pop();
+    if (fullIdFileName && fullIdFileName !== fileName) {
+        metadata.FileName = fullIdFileName;
+    }
+
     // 获得返回链接格式, default为返回/file/id, full为返回完整链接
     const returnFormat = url.searchParams.get('returnFormat') || 'default';
     let returnLink = '';
