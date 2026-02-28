@@ -533,7 +533,9 @@ async function buildAIBasedFileId(context, fileName, fileType, imageBuffer = nul
     }
 
     // 6. 构建最终文件 ID
-    const fileExt = fileName.split('.').pop() || fileType.split('/').pop() || 'jpg';
+    // 安全获取扩展名：若文件名含 '.' 且 '.' 不在首位，才取后缀；否则从 fileType 推断
+    const _dotIdx = fileName.lastIndexOf('.');
+    const fileExt = (_dotIdx > 0 ? fileName.slice(_dotIdx + 1) : null) || fileType.split('/').pop() || 'jpg';
     const uploadFolder = url.searchParams.get('uploadFolder') || '';
     const normalizedFolder = uploadFolder
         .replace(/^\/+/, '')
